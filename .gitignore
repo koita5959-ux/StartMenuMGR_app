@@ -1,0 +1,15 @@
+## .NET
+bin/
+obj/
+
+## IDE
+.vs/
+*.user
+*.suo
+
+## OS
+Thumbs.db
+Desktop.ini
+
+## _works内のTrash
+_works/Trash/
