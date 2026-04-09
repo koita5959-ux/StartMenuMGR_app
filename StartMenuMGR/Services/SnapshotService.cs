@@ -34,7 +34,7 @@ public class SnapshotService
 
         // スナップショット用ディレクトリにファイルのバックアップコピーを保存
         if (Directory.Exists(_snapshotDir))
-            Directory.Delete(_snapshotDir, true);
+            DeleteDirectoryForce(_snapshotDir);
         Directory.CreateDirectory(_snapshotDir);
 
         foreach (var entry in _snapshot.Entries)
@@ -131,27 +131,42 @@ public class SnapshotService
     {
         if (!Directory.Exists(folderPath)) return;
 
-        // フォルダ自体を記録
-        foreach (var dir in Directory.GetDirectories(folderPath, "*", SearchOption.AllDirectories))
+        CaptureDirectoryRecursive(folderPath, isUserScope);
+    }
+
+    private void CaptureDirectoryRecursive(string dirPath, bool isUserScope)
+    {
+        // サブフォルダを走査
+        try
         {
-            _snapshot!.Entries.Add(new SnapshotEntry
+            foreach (var dir in Directory.GetDirectories(dirPath))
             {
-                FullPath = dir,
-                IsFolder = true,
-                IsUserScope = isUserScope
-            });
+                _snapshot!.Entries.Add(new SnapshotEntry
+                {
+                    FullPath = dir,
+                    IsFolder = true,
+                    IsUserScope = isUserScope
+                });
+
+                CaptureDirectoryRecursive(dir, isUserScope);
+            }
         }
+        catch (UnauthorizedAccessException) { /* アクセス拒否: スキップ */ }
 
         // ファイルを記録
-        foreach (var file in Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories))
+        try
         {
-            _snapshot!.Entries.Add(new SnapshotEntry
+            foreach (var file in Directory.GetFiles(dirPath))
             {
-                FullPath = file,
-                IsFolder = false,
-                IsUserScope = isUserScope
-            });
+                _snapshot!.Entries.Add(new SnapshotEntry
+                {
+                    FullPath = file,
+                    IsFolder = false,
+                    IsUserScope = isUserScope
+                });
+            }
         }
+        catch (UnauthorizedAccessException) { /* アクセス拒否: スキップ */ }
     }
 
     /// <summary>
@@ -197,9 +212,23 @@ public class SnapshotService
         try
         {
             if (Directory.Exists(_snapshotDir))
-                Directory.Delete(_snapshotDir, true);
+                DeleteDirectoryForce(_snapshotDir);
         }
         catch { }
+    }
+
+    /// <summary>
+    /// 読み取り専用属性を解除してからディレクトリを再帰削除する
+    /// </summary>
+    private static void DeleteDirectoryForce(string path)
+    {
+        foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+        {
+            var attr = File.GetAttributes(file);
+            if ((attr & FileAttributes.ReadOnly) != 0)
+                File.SetAttributes(file, attr & ~FileAttributes.ReadOnly);
+        }
+        Directory.Delete(path, true);
     }
 }
 

@@ -13,6 +13,8 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly StartMenuReader _reader = new();
     private readonly SnapshotService _snapshot = new();
     private readonly ApplyService _applyService = new();
+    private readonly PinnedTileReader _pinnedReader = new();
+    private List<PinnedTileInfo> _pinnedTiles = new();
 
     private StartMenuEntry? _selectedEntry;
     private string _statusMessage = string.Empty;
@@ -20,10 +22,18 @@ public class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<StartMenuEntry> Entries { get; } = new();
 
+    public ObservableCollection<StartMenuEntry> IconItems { get; } = new();
+
     public StartMenuEntry? SelectedEntry
     {
         get => _selectedEntry;
-        set { _selectedEntry = value; OnPropertyChanged(); OnPropertyChanged(nameof(SelectedEntryInfo)); }
+        set
+        {
+            _selectedEntry = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SelectedEntryInfo));
+            UpdateIconItems();
+        }
     }
 
     public string SelectedEntryInfo
@@ -85,11 +95,16 @@ public class MainViewModel : INotifyPropertyChanged
 
             Entries.Clear();
             var entries = _reader.ReadAll();
-            foreach (var entry in entries)
+            var grouped = InsertGroupHeaders(entries);
+            foreach (var entry in grouped)
                 Entries.Add(entry);
 
             TotalItems = CountItems(Entries);
-            StatusMessage = $"読み取り完了: {TotalItems}項目";
+
+            _pinnedTiles = _pinnedReader.ReadPinnedTiles();
+            UpdateIconItems();
+
+            StatusMessage = $"読み取り完了: {TotalItems}項目（ピン留め: {IconItems.Count}）";
         }
         catch (Exception ex)
         {
@@ -144,11 +159,104 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private void UpdateIconItems()
+    {
+        IconItems.Clear();
+
+        if (_selectedEntry != null && _selectedEntry.IsFolder)
+        {
+            // フォルダ選択: 子項目を表示
+            foreach (var child in _selectedEntry.Children)
+                IconItems.Add(child);
+            return;
+        }
+
+        // 未選択 or ショートカット選択: ピン留めアイテムを表示
+        var allShortcuts = new List<StartMenuEntry>();
+        CollectAllShortcuts(Entries, allShortcuts);
+
+        foreach (var tile in _pinnedTiles)
+        {
+            if (tile.Type != TileType.Desktop) continue;
+
+            var match = FindMatchingEntry(allShortcuts, tile);
+            if (match != null)
+                IconItems.Add(match);
+        }
+    }
+
+    private static StartMenuEntry? FindMatchingEntry(List<StartMenuEntry> shortcuts, PinnedTileInfo tile)
+    {
+        foreach (var entry in shortcuts)
+        {
+            // リンク先パスで一致確認
+            if (!string.IsNullOrEmpty(entry.TargetPath) && !string.IsNullOrEmpty(tile.ResolvedPath))
+            {
+                if (string.Equals(entry.TargetPath, tile.ResolvedPath, StringComparison.OrdinalIgnoreCase))
+                    return entry;
+            }
+
+            // RawIdにエントリ名が含まれるか（名前ベースの一致）
+            if (!string.IsNullOrEmpty(tile.RawId) &&
+                tile.RawId.Contains(entry.Name, StringComparison.OrdinalIgnoreCase))
+                return entry;
+        }
+
+        return null;
+    }
+
+    private static void CollectAllShortcuts(ObservableCollection<StartMenuEntry> source, List<StartMenuEntry> dest)
+    {
+        foreach (var e in source)
+        {
+            if (e.IsGroupHeader) continue;
+            if (!e.IsFolder)
+                dest.Add(e);
+            else
+                CollectAllShortcuts(e.Children, dest);
+        }
+    }
+
+    /// <summary>
+    /// ルートレベルの項目をアルファベットでグループ化し、ヘッダー行を挿入する
+    /// </summary>
+    private ObservableCollection<StartMenuEntry> InsertGroupHeaders(ObservableCollection<StartMenuEntry> entries)
+    {
+        var result = new ObservableCollection<StartMenuEntry>();
+        string? currentGroup = null;
+
+        foreach (var entry in entries)
+        {
+            var group = GetGroupKey(entry.Name);
+            if (group != currentGroup)
+            {
+                currentGroup = group;
+                result.Add(new StartMenuEntry
+                {
+                    Name = group,
+                    IsGroupHeader = true
+                });
+            }
+            result.Add(entry);
+        }
+
+        return result;
+    }
+
+    private static string GetGroupKey(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "#";
+        var firstChar = char.ToUpperInvariant(name[0]);
+        if (firstChar >= 'A' && firstChar <= 'Z') return firstChar.ToString();
+        return "#";
+    }
+
     private int CountItems(ObservableCollection<StartMenuEntry> entries)
     {
         int count = 0;
         foreach (var e in entries)
         {
+            if (e.IsGroupHeader) continue;
             count++;
             if (e.IsFolder)
                 count += CountItems(e.Children);

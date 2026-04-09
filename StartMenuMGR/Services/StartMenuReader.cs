@@ -45,54 +45,77 @@ public class StartMenuReader
         if (!Directory.Exists(folderPath)) return entries;
 
         // フォルダ
-        foreach (var dir in Directory.GetDirectories(folderPath))
+        try
         {
-            var entry = new StartMenuEntry
+            foreach (var dir in Directory.GetDirectories(folderPath))
             {
-                Name = Path.GetFileName(dir),
-                FullPath = dir,
-                IsFolder = true,
-                IsUserScope = isUserScope,
-                Icon = GetFolderIcon()
-            };
+                try
+                {
+                    var entry = new StartMenuEntry
+                    {
+                        Name = Path.GetFileName(dir),
+                        FullPath = dir,
+                        IsFolder = true,
+                        IsUserScope = isUserScope,
+                        Icon = GetFolderIcon()
+                    };
 
-            var children = ReadFolder(dir, isUserScope);
-            foreach (var child in children)
-            {
-                child.Parent = entry;
-                entry.Children.Add(child);
+                    var children = ReadFolder(dir, isUserScope);
+                    foreach (var child in children)
+                    {
+                        child.Parent = entry;
+                        entry.Children.Add(child);
+                    }
+                    SortEntries(entry.Children);
+
+                    // 空フォルダもツリーに含める
+                    entries.Add(entry);
+                }
+                catch (UnauthorizedAccessException) { /* アクセス拒否: スキップ */ }
             }
-            SortEntries(entry.Children);
-
-            // 空フォルダもツリーに含める
-            entries.Add(entry);
         }
+        catch (UnauthorizedAccessException) { /* フォルダ列挙自体が拒否: スキップ */ }
 
         // ショートカット (.lnk) とその他のファイル
-        foreach (var file in Directory.GetFiles(folderPath))
+        try
         {
-            var ext = Path.GetExtension(file).ToLowerInvariant();
-            var entry = new StartMenuEntry
+            foreach (var file in Directory.GetFiles(folderPath))
             {
-                Name = Path.GetFileNameWithoutExtension(file),
-                FullPath = file,
-                IsFolder = false,
-                IsUserScope = isUserScope
-            };
-
-            if (ext == ".lnk")
-            {
-                var info = ShellLinkReader.ReadShortcut(file);
-                if (info.HasValue)
+                try
                 {
-                    entry.TargetPath = info.Value.targetPath;
-                    entry.Description = info.Value.description;
-                }
-            }
+                    var ext = Path.GetExtension(file).ToLowerInvariant();
+                    var fileInfo = new FileInfo(file);
+                    var entry = new StartMenuEntry
+                    {
+                        Name = Path.GetFileNameWithoutExtension(file),
+                        FullPath = file,
+                        IsFolder = false,
+                        IsUserScope = isUserScope,
+                        LastModified = fileInfo.LastWriteTime,
+                        FileSize = fileInfo.Length
+                    };
 
-            entry.Icon = GetFileIcon(file);
-            entries.Add(entry);
+                    if (ext == ".lnk")
+                    {
+                        var info = ShellLinkReader.ReadShortcut(file);
+                        if (info.HasValue)
+                        {
+                            entry.TargetPath = info.Value.targetPath;
+                            entry.Description = info.Value.description;
+                            entry.Arguments = string.IsNullOrWhiteSpace(info.Value.arguments) ? null : info.Value.arguments;
+                            entry.WorkingDirectory = string.IsNullOrWhiteSpace(info.Value.workingDir) ? null : info.Value.workingDir;
+                            entry.TargetExists = !string.IsNullOrEmpty(info.Value.targetPath)
+                                && (File.Exists(info.Value.targetPath) || Directory.Exists(info.Value.targetPath));
+                        }
+                    }
+
+                    entry.Icon = GetFileIcon(file);
+                    entries.Add(entry);
+                }
+                catch (UnauthorizedAccessException) { /* アクセス拒否: スキップ */ }
+            }
         }
+        catch (UnauthorizedAccessException) { /* ファイル列挙自体が拒否: スキップ */ }
 
         return entries;
     }
@@ -160,28 +183,35 @@ public class StartMenuReader
         }
     }
 
+    private static ImageSource? _cachedFolderIcon;
+
     private ImageSource? GetFolderIcon()
     {
+        if (_cachedFolderIcon != null) return _cachedFolderIcon;
+
         try
         {
-            // シェルからフォルダアイコンを取得
-            var shInfo = new NativeMethods.SHFILEINFO();
-            NativeMethods.SHGetFileInfo(
-                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-                NativeMethods.FILE_ATTRIBUTE_DIRECTORY,
-                ref shInfo,
-                (uint)System.Runtime.InteropServices.Marshal.SizeOf(shInfo),
-                NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_SMALLICON | NativeMethods.SHGFI_USEFILEATTRIBUTES);
+            // スタートメニュー風の明るいフォルダアイコンを描画
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                // フォルダ本体（Windows 10風の黄色）
+                var folderBrush = new SolidColorBrush(Color.FromRgb(255, 196, 56));
+                var folderDarkBrush = new SolidColorBrush(Color.FromRgb(230, 170, 40));
 
-            if (shInfo.hIcon == IntPtr.Zero) return null;
+                // タブ部分
+                dc.DrawRoundedRectangle(folderDarkBrush, null,
+                    new Rect(1, 2, 6, 3), 1, 1);
+                // 本体
+                dc.DrawRoundedRectangle(folderBrush, null,
+                    new Rect(0, 4, 14, 10), 1, 1);
+            }
 
-            var source = Imaging.CreateBitmapSourceFromHIcon(
-                shInfo.hIcon,
-                Int32Rect.Empty,
-                BitmapSizeOptions.FromEmptyOptions());
-
-            NativeMethods.DestroyIcon(shInfo.hIcon);
-            return source;
+            var bitmap = new RenderTargetBitmap(16, 16, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            bitmap.Freeze();
+            _cachedFolderIcon = bitmap;
+            return bitmap;
         }
         catch
         {

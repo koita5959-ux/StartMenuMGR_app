@@ -14,6 +14,7 @@ public class StartMenuEntry : INotifyPropertyChanged
     private bool _isFolder;
     private bool _isExpanded;
     private bool _isUserScope;
+    private bool _isGroupHeader;
     private string? _targetPath;
     private string? _description;
     private System.Windows.Media.ImageSource? _icon;
@@ -43,6 +44,13 @@ public class StartMenuEntry : INotifyPropertyChanged
         set { _isExpanded = value; OnPropertyChanged(); }
     }
 
+    /// <summary>アルファベットグループヘッダー（#, A, B, C...）</summary>
+    public bool IsGroupHeader
+    {
+        get => _isGroupHeader;
+        set { _isGroupHeader = value; OnPropertyChanged(); }
+    }
+
     /// <summary>true=ユーザースコープ, false=全ユーザースコープ</summary>
     public bool IsUserScope
     {
@@ -69,6 +77,24 @@ public class StartMenuEntry : INotifyPropertyChanged
         get => _icon;
         set { _icon = value; OnPropertyChanged(); }
     }
+
+    /// <summary>ファイルの更新日時</summary>
+    public DateTime? LastModified { get; set; }
+
+    /// <summary>ファイルサイズ（バイト）</summary>
+    public long? FileSize { get; set; }
+
+    /// <summary>.lnkの引数</summary>
+    public string? Arguments { get; set; }
+
+    /// <summary>.lnkの作業ディレクトリ</summary>
+    public string? WorkingDirectory { get; set; }
+
+    /// <summary>リンク先が存在するか</summary>
+    public bool? TargetExists { get; set; }
+
+    /// <summary>フォルダ内の子項目数</summary>
+    public int ChildCount => Children.Count;
 
     public ObservableCollection<StartMenuEntry> Children { get; } = new();
 

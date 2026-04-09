@@ -11,5 +11,9 @@ obj/
 Thumbs.db
 Desktop.ini
 
+## 配布物（ビルドで再生成できる）
+*_setup_*.exe
+*_v*.zip
+
 ## _works内のTrash
 _works/Trash/

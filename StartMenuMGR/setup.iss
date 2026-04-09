@@ -2,11 +2,11 @@
 ; 基準書準拠: インストール/アンインストール完備
 
 #define MyAppName "StartMenuMGR"
-#define MyAppVersion "01.01"
+#define MyAppVersion "01.02"
 #define MyAppPublisher "DesktopKit"
 #define MyAppExeName "StartMenuMGR.exe"
-#define MyAppSource "..\bin\Publish"
-#define MyOutputDir "..\bin\Installer"
+#define MyAppSource "bin\Publish"
+#define MyOutputDir ".."
 
 [Setup]
 AppId={{A3F7B2D1-8E4C-4A9F-B6D3-7C2E1F5A8B90}

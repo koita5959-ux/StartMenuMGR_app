@@ -6,10 +6,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationIcon>..\Assets\app.ico</ApplicationIcon>
     <AssemblyTitle>StartMenuMGR</AssemblyTitle>
     <Description>Windows 10 Start Menu Manager</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Resource Include="..\Assets\app.ico" Link="Assets\app.ico" />
+  </ItemGroup>
 
 </Project>
