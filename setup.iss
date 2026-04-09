@@ -34,7 +34,7 @@ LicenseFile=ご利用にあたって.txt
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "デスクトップにアイコンを作成"; GroupDescription: "追加タスク:"; Flags: unchecked
+Name: "desktopicon"; Description: "デスクトップにアイコンを作成"; GroupDescription: "追加タスク:"
 
 [Files]
 Source: "{#MyAppSource}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
