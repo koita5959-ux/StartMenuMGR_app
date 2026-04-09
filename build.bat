@@ -17,11 +17,9 @@ echo.
 
 rem --- 1. dotnet publish ---
 echo [1/3] dotnet publish ...
-cd %APP_NAME%
-dotnet publish -c Release -r win-x64 --self-contained false -o bin\Publish
+dotnet publish %APP_NAME% -c Release -r win-x64 --self-contained false -o %APP_NAME%\bin\Publish
 if errorlevel 1 (
     echo [エラー] dotnet publish に失敗しました。
-    cd ..
     exit /b 1
 )
 echo       OK
@@ -32,10 +30,8 @@ echo [2/3] Inno Setup コンパイル ...
 %ISCC% setup.iss
 if errorlevel 1 (
     echo [エラー] Inno Setup コンパイルに失敗しました。
-    cd ..
     exit /b 1
 )
-cd ..
 echo       OK
 echo.
 

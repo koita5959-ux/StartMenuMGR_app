@@ -5,8 +5,8 @@
 #define MyAppVersion "01.02"
 #define MyAppPublisher "DesktopKit"
 #define MyAppExeName "StartMenuMGR.exe"
-#define MyAppSource "bin\Publish"
-#define MyOutputDir ".."
+#define MyAppSource "StartMenuMGR\bin\Publish"
+#define MyOutputDir "."
 
 [Setup]
 AppId={{A3F7B2D1-8E4C-4A9F-B6D3-7C2E1F5A8B90}
@@ -23,7 +23,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
-SetupIconFile=..\Assets\app.ico
+SetupIconFile=Assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
